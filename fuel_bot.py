@@ -7,7 +7,7 @@ API_KEY = os.environ["EIA_API_KEY"]
 
 def get_fuel_price():
 
-    url = f"https://api.eia.gov/v2/petroleum/pri/spt/data/?api_key={5IXWS7sjKHBz5lrxb3jIxct9mBUkBL2GxAScENgO}&frequency=weekly&data[0]=value&facets[product][]=JF&facets[area][]=USGC&sort[0][column]=period&sort[0][direction]=desc&length=1"
+    url = f"https://api.eia.gov/v2/petroleum/pri/spt/data/?api_key={API_KEY}&frequency=weekly&data[0]=value&facets[product][]=JF&facets[area][]=USGC&sort[0][column]=period&sort[0][direction]=desc&length=1"
 
     r = requests.get(url)
     data = r.json()
