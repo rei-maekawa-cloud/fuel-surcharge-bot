@@ -1,92 +1,78 @@
-import asyncio
-import os
 import requests
-from playwright.async_api import async_playwright
+import os
+
+# -----------------------
+# Fuel Index取得
+# -----------------------
+
+def get_fuel_price():
+
+    url = "https://api.eia.gov/v2/petroleum/pri/spt/data/?frequency=weekly&data[0]=value&facets[product][]=JF&facets[area][]=USGC&sort[0][column]=period&sort[0][direction]=desc&length=1"
+
+    r = requests.get(url)
+
+    data = r.json()
+
+    price = data["response"]["data"][0]["value"]
+
+    return float(price)
 
 
-# ----------------
-# FedEx
-# ----------------
-async def get_fedex(page):
+# -----------------------
+# FedEx計算
+# -----------------------
 
-    url = "https://www.fedex.com/ja-jp/shipping/surcharges.html"
+def calc_fedex(price):
 
-    await page.goto(url)
+    if price < 2.40: return 30
+    if price < 2.60: return 33
+    if price < 2.80: return 35
+    if price < 3.00: return 38.5
+    if price < 3.20: return 41
+    if price < 3.40: return 44
 
-    # テーブル表示まで待つ
-    await page.wait_for_selector("table")
-
-    rows = await page.locator("table tr").all()
-
-    for r in rows:
-
-        text = await r.inner_text()
-
-        if "%" in text:
-
-            import re
-
-            m = re.search(r"\d{2}\.\d+%", text)
-
-            if m:
-                return m.group()
-
-    return None
+    return 47
 
 
-# ----------------
-# DHL
-# ----------------
-async def get_dhl(page):
+# -----------------------
+# DHL計算
+# -----------------------
 
-    url = "https://mydhl.express.dhl/jp/ja/ship/surcharges.html#/fuel_surcharge"
+def calc_dhl(price):
 
-    await page.goto(url)
+    if price < 2.40: return 24
+    if price < 2.60: return 26
+    if price < 2.80: return 28
+    if price < 3.00: return 30.5
+    if price < 3.20: return 33
+    if price < 3.40: return 35
 
-    await page.wait_for_timeout(5000)
-
-    text = await page.inner_text("body")
-
-    import re
-
-    matches = re.findall(r"\d{2}\.\d+%", text)
-
-    for m in matches:
-
-        v = float(m.replace("%",""))
-
-        if 20 < v < 50:
-            return m
-
-    return None
+    return 38
 
 
-async def main():
+# -----------------------
+# main
+# -----------------------
 
-    async with async_playwright() as p:
+price = get_fuel_price()
 
-        browser = await p.chromium.launch()
+fedex = calc_fedex(price)
 
-        page = await browser.new_page()
+dhl = calc_dhl(price)
 
-        fedex = await get_fedex(page)
-        dhl = await get_dhl(page)
+msg = f"""
+Jet Fuel Price
+{price} USD/gallon
 
-        await browser.close()
+燃油サーチャージ（推定）
 
-    msg = f"""
-燃油サーチャージ
-
-FedEx {fedex}
-DHL   {dhl}
+FedEx {fedex}%
+DHL   {dhl}%
 """
 
-    webhook = os.environ["SLACK_WEBHOOK"]
+webhook = os.environ["SLACK_WEBHOOK"]
 
-    requests.post(
-        webhook,
-        json={"text": msg}
-    )
-
-
-asyncio.run(main())
+requests.post(
+    webhook,
+    json={"text": msg}
+)
