@@ -2,7 +2,7 @@ import requests
 import re
 import os
 
-url = "https://www.fedex.com/ja-jp/shipping/surcharges.html"
+url = "https://www.dhl.com/global-en/home/express/shipping/surcharges.html"
 
 headers = {
     "User-Agent": "Mozilla/5.0"
@@ -10,10 +10,10 @@ headers = {
 
 r = requests.get(url, headers=headers)
 
-# HTMLの中から%を全部探す
-matches = re.findall(r"\d{2}\.\d+%", r.text)
-
 fuel = "取得失敗"
+
+# %を全部抽出
+matches = re.findall(r"\d+\.\d+%", r.text)
 
 if matches:
     fuel = matches[0]
@@ -21,7 +21,7 @@ if matches:
 webhook = os.environ["SLACK_WEBHOOK"]
 
 msg = {
-    "text": f"FedEx燃油サーチャージ\n{fuel}"
+    "text": f"DHL燃油サーチャージ\n{fuel}"
 }
 
 requests.post(webhook, json=msg)
