@@ -2,21 +2,31 @@ import requests
 from bs4 import BeautifulSoup
 import os
 
-WEBHOOK = os.environ["SLACK_WEBHOOK"]
-
 url = "https://www.fedex.com/ja-jp/shipping/surcharges.html"
 
-r = requests.get(url)
-soup = BeautifulSoup(r.text,"html.parser")
+headers = {
+    "User-Agent": "Mozilla/5.0"
+}
 
-table = soup.find("table")
-row = table.find_all("tr")[1]
+res = requests.get(url, headers=headers)
+soup = BeautifulSoup(res.text, "html.parser")
 
-cols = row.find_all("td")
+text = soup.get_text()
 
-period = cols[0].text.strip()
-fuel = cols[2].text.strip()
+fuel = None
 
-msg = f"FedEx燃油サーチャージ\n{fuel}\n期間:{period}"
+for line in text.split("\n"):
+    if "%" in line and "燃油" in line:
+        fuel = line.strip()
+        break
 
-requests.post(WEBHOOK,json={"text":msg})
+if fuel is None:
+    fuel = "取得失敗"
+
+webhook = os.environ["SLACK_WEBHOOK"]
+
+msg = {
+    "text": f"FedEx燃油サーチャージ\n{fuel}"
+}
+
+requests.post(webhook, json=msg)
