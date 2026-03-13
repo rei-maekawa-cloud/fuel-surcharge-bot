@@ -1,21 +1,28 @@
 import requests
-import re
+from bs4 import BeautifulSoup
 import os
 
-url = "https://www.fedex.com/ja-jp/shipping/surcharges.html"
+url = "https://www.fedex.com/en-us/shipping/rates/fuel-surcharge.html"
 
 headers = {
     "User-Agent": "Mozilla/5.0"
 }
 
 res = requests.get(url, headers=headers)
-
-matches = re.findall(r"\d+\.\d+%", res.text)
+soup = BeautifulSoup(res.text, "html.parser")
 
 fuel = "取得失敗"
 
-if matches:
-    fuel = matches[0]
+tables = soup.find_all("table")
+
+for table in tables:
+    rows = table.find_all("tr")
+    for row in rows:
+        cols = row.find_all("td")
+        if len(cols) >= 2:
+            if "%" in cols[1].text:
+                fuel = cols[1].text.strip()
+                break
 
 webhook = os.environ["SLACK_WEBHOOK"]
 
