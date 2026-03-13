@@ -5,36 +5,39 @@ import requests
 from playwright.async_api import async_playwright
 
 
-async def get_fedex(page):
+# -----------------------
+# FedEx（API取得）
+# -----------------------
+def get_fedex():
 
-    url = "https://www.fedex.com/ja-jp/shipping/surcharges.html"
+    url = "https://www.fedex.com/apps/fedextrack/api/surcharge/v1/fuelsurcharge"
 
-    await page.goto(url)
+    try:
+        r = requests.get(url, timeout=10)
 
-    # テーブルが表示されるまで待つ
-    await page.wait_for_selector("table")
+        text = r.text
 
-    text = await page.inner_text("body")
+        match = re.search(r"\d{2}\.\d+%", text)
 
-    matches = re.findall(r"\d{2}\.\d+%", text)
+        if match:
+            return match.group()
 
-    for m in matches:
-
-        v = float(m.replace("%",""))
-
-        if 20 < v < 60:
-            return m
+    except:
+        pass
 
     return None
 
 
+# -----------------------
+# DHL
+# -----------------------
 async def get_dhl(page):
 
     url = "https://mydhl.express.dhl/jp/ja/ship/surcharges.html#/fuel_surcharge"
 
     await page.goto(url)
 
-    await page.wait_for_timeout(4000)
+    await page.wait_for_timeout(5000)
 
     text = await page.inner_text("body")
 
@@ -52,13 +55,14 @@ async def get_dhl(page):
 
 async def main():
 
+    fedex = get_fedex()
+
     async with async_playwright() as p:
 
         browser = await p.chromium.launch()
 
         page = await browser.new_page()
 
-        fedex = await get_fedex(page)
         dhl = await get_dhl(page)
 
         await browser.close()
