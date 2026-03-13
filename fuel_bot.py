@@ -1,53 +1,52 @@
 import asyncio
 import os
+import re
 import requests
 from playwright.async_api import async_playwright
 
-# -----------------------
-# FedEx
-# -----------------------
+
 async def get_fedex(page):
 
     url = "https://www.fedex.com/ja-jp/shipping/surcharges.html"
 
     await page.goto(url)
+    await page.wait_for_timeout(5000)
 
-    text = await page.content()
+    text = await page.inner_text("body")
 
-    import re
-    match = re.search(r"\d{2}\.\d+%", text)
+    matches = re.findall(r"\d{2}\.\d+%", text)
 
-    if match:
-        return match.group()
+    for m in matches:
+        v = float(m.replace("%",""))
+
+        # FedEx燃油はだいたい20〜60%
+        if 20 < v < 60:
+            return m
 
     return None
 
 
-# -----------------------
-# DHL
-# -----------------------
 async def get_dhl(page):
 
     url = "https://mydhl.express.dhl/jp/ja/ship/surcharges.html#/fuel_surcharge"
 
     await page.goto(url)
+    await page.wait_for_timeout(5000)
 
-    await page.wait_for_timeout(3000)
+    text = await page.inner_text("body")
 
-    text = await page.content()
+    matches = re.findall(r"\d{2}\.\d+%", text)
 
-    import re
-    match = re.search(r"\d{2}\.\d+%", text)
+    for m in matches:
+        v = float(m.replace("%",""))
 
-    if match:
-        return match.group()
+        # DHL燃油はだいたい20〜50%
+        if 20 < v < 50:
+            return m
 
     return None
 
 
-# -----------------------
-# main
-# -----------------------
 async def main():
 
     async with async_playwright() as p:
