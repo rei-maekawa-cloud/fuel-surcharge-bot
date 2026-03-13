@@ -1,105 +1,79 @@
-import requests
-from bs4 import BeautifulSoup
+import asyncio
 import os
-import json
-import re
+import requests
+from playwright.async_api import async_playwright
 
-# --------------------
-# DHL取得
-# --------------------
-def get_dhl():
-    url = "https://mydhl.express.dhl/jp/ja/ship/surcharges.html#/fuel_surcharge"
-    res = requests.get(url)
-    soup = BeautifulSoup(res.text, "html.parser")
-    text = soup.get_text()
+# -----------------------
+# FedEx
+# -----------------------
+async def get_fedex(page):
 
-    match = re.search(r"DHL.*?(\d+\.\d+%)", text)
-
-    if match:
-        return match.group(1)
-
-    return None
-
-
-# --------------------
-# FedEx取得
-# --------------------
-def get_fedex():
     url = "https://www.fedex.com/ja-jp/shipping/surcharges.html"
-    res = requests.get(url)
-    soup = BeautifulSoup(res.text, "html.parser")
-    text = soup.get_text()
 
-    match = re.search(r"FedEx.*?(\d+\.\d+%)", text)
+    await page.goto(url)
+
+    text = await page.content()
+
+    import re
+    match = re.search(r"\d{2}\.\d+%", text)
 
     if match:
-        return match.group(1)
+        return match.group()
 
     return None
 
 
-dhl = get_dhl()
-fedex = get_fedex()
+# -----------------------
+# DHL
+# -----------------------
+async def get_dhl(page):
 
-current = {
-    "DHL": dhl,
-    "FedEx": fedex
-}
+    url = "https://mydhl.express.dhl/jp/ja/ship/surcharges.html#/fuel_surcharge"
 
-# --------------------
-# 前回データ読み込み
-# --------------------
-file = "last.json"
+    await page.goto(url)
 
-if os.path.exists(file):
+    await page.wait_for_timeout(3000)
 
-    with open(file) as f:
-        last = json.load(f)
+    text = await page.content()
 
-else:
+    import re
+    match = re.search(r"\d{2}\.\d+%", text)
 
-    last = {}
+    if match:
+        return match.group()
 
-# --------------------
-# 差分チェック
-# --------------------
-changed = False
-lines = []
+    return None
 
-for k,v in current.items():
 
-    old = last.get(k)
+# -----------------------
+# main
+# -----------------------
+async def main():
 
-    if old != v:
+    async with async_playwright() as p:
 
-        changed = True
+        browser = await p.chromium.launch()
 
-        if old:
+        page = await browser.new_page()
 
-            diff = float(v.replace("%","")) - float(old.replace("%",""))
+        fedex = await get_fedex(page)
+        dhl = await get_dhl(page)
 
-            lines.append(f"{k} {old} → {v} ({diff:+.2f})")
+        await browser.close()
 
-        else:
+    msg = f"""
+燃油サーチャージ
 
-            lines.append(f"{k} {v}")
-
-# --------------------
-# Slack通知
-# --------------------
-if changed:
+FedEx {fedex}
+DHL   {dhl}
+"""
 
     webhook = os.environ["SLACK_WEBHOOK"]
 
-    msg = {
-        "text": "燃油サーチャージ更新\n\n" + "\n".join(lines)
-    }
+    requests.post(
+        webhook,
+        json={"text": msg}
+    )
 
-    requests.post(webhook, json=msg)
 
-# --------------------
-# 保存
-# --------------------
-with open(file,"w") as f:
-
-    json.dump(current,f)
+asyncio.run(main())
