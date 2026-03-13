@@ -1,63 +1,57 @@
 import requests
 import os
 
-# -----------------------
-# Fuel Index取得
-# -----------------------
+SLACK_WEBHOOK = os.environ["SLACK_WEBHOOK"]
+API_KEY = os.environ["EIA_API_KEY"]
+
 
 def get_fuel_price():
 
-    url = "https://api.eia.gov/v2/petroleum/pri/spt/data/?frequency=weekly&data[0]=value&facets[product][]=JF&facets[area][]=USGC&sort[0][column]=period&sort[0][direction]=desc&length=1"
+    url = f"https://api.eia.gov/v2/petroleum/pri/spt/data/?api_key={5IXWS7sjKHBz5lrxb3jIxct9mBUkBL2GxAScENgO}&frequency=weekly&data[0]=value&facets[product][]=JF&facets[area][]=USGC&sort[0][column]=period&sort[0][direction]=desc&length=1"
 
     r = requests.get(url)
-
     data = r.json()
 
-    price = data["response"]["data"][0]["value"]
+    price = float(data["response"]["data"][0]["value"])
 
-    return float(price)
+    return price
 
-
-# -----------------------
-# FedEx計算
-# -----------------------
 
 def calc_fedex(price):
 
-    if price < 2.40: return 30
-    if price < 2.60: return 33
-    if price < 2.80: return 35
-    if price < 3.00: return 38.5
-    if price < 3.20: return 41
-    if price < 3.40: return 44
+    if price < 2.8:
+        return 35.0
+    elif price < 3.0:
+        return 38.5
+    elif price < 3.2:
+        return 41.5
+    else:
+        return 45.0
 
-    return 47
-
-
-# -----------------------
-# DHL計算
-# -----------------------
 
 def calc_dhl(price):
 
-    if price < 2.40: return 24
-    if price < 2.60: return 26
-    if price < 2.80: return 28
-    if price < 3.00: return 30.5
-    if price < 3.20: return 33
-    if price < 3.40: return 35
+    if price < 2.8:
+        return 28.0
+    elif price < 3.0:
+        return 30.5
+    elif price < 3.2:
+        return 33.0
+    else:
+        return 35.0
 
-    return 38
 
+def send_slack(text):
 
-# -----------------------
-# main
-# -----------------------
+    requests.post(
+        SLACK_WEBHOOK,
+        json={"text": text}
+    )
+
 
 price = get_fuel_price()
 
 fedex = calc_fedex(price)
-
 dhl = calc_dhl(price)
 
 msg = f"""
@@ -70,9 +64,4 @@ FedEx {fedex}%
 DHL   {dhl}%
 """
 
-webhook = os.environ["SLACK_WEBHOOK"]
-
-requests.post(
-    webhook,
-    json={"text": msg}
-)
+send_slack(msg)
