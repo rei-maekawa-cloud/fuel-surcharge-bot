@@ -10,16 +10,18 @@ async def get_fedex(page):
     url = "https://www.fedex.com/ja-jp/shipping/surcharges.html"
 
     await page.goto(url)
-    await page.wait_for_timeout(5000)
+
+    # テーブルが表示されるまで待つ
+    await page.wait_for_selector("table")
 
     text = await page.inner_text("body")
 
     matches = re.findall(r"\d{2}\.\d+%", text)
 
     for m in matches:
+
         v = float(m.replace("%",""))
 
-        # FedEx燃油はだいたい20〜60%
         if 20 < v < 60:
             return m
 
@@ -31,16 +33,17 @@ async def get_dhl(page):
     url = "https://mydhl.express.dhl/jp/ja/ship/surcharges.html#/fuel_surcharge"
 
     await page.goto(url)
-    await page.wait_for_timeout(5000)
+
+    await page.wait_for_timeout(4000)
 
     text = await page.inner_text("body")
 
     matches = re.findall(r"\d{2}\.\d+%", text)
 
     for m in matches:
+
         v = float(m.replace("%",""))
 
-        # DHL燃油はだいたい20〜50%
         if 20 < v < 50:
             return m
 
