@@ -2,7 +2,7 @@ import requests
 import re
 import os
 
-url = "https://www.dhl.com/global-en/home/express/shipping/surcharges.html"
+url = "https://mydhl.express.dhl/jp/ja/ship/surcharges.html#/fuel_surcharge"
 
 headers = {
     "User-Agent": "Mozilla/5.0"
